@@ -21,9 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # MODE is taken from workflow_dispatch input (if present) or defaults to 'headless'
-      MODE: ${{ github.event.inputs.mode || 'headless' }}
+      MODE: ${{ coalesce(github.event.inputs.mode, 'headless') }}
       # Headless boolean exposed to tests; evaluates to true when MODE == 'headless'
-      Headless: ${{ eq(env.MODE, 'headless') }}
+      Headless: ${{ eq(coalesce(github.event.inputs.mode, 'headless'), 'headless') }}
 
     steps:
       - name: Checkout
