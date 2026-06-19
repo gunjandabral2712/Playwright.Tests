@@ -25,26 +25,79 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Setup Node.js
+      - name: Setup Playwright (official action)
+        uses: microsoft/playwright-action@v1
+        with:
+          # pin Playwright to match Microsoft.Playwright package
+          playwright-version: '1.60.0'
+
+      - name: Setup Node.js for report generation
         uses: actions/setup-node@v4
         with:
           node-version: '18'
 
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-browsers-v1
-          restore-keys: ${{ runner.os }}-playwright-browsers-
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
+      - name: Run tests (produce TRX)
         run: |
-          npx playwright@latest install --with-deps
-      - name: Show Playwright version
-        run: npx playwright --version || true
+          mkdir -p Playwright.Tests/TestResults
+          dotnet test Playwright.Tests/Playwright.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=Playwright.Tests/TestResults/test_results.trx" --verbosity normal
 
-      - name: Test
-        run: dotnet test Playwright.Tests/Playwright.Tests.csproj --configuration Release --no-build --verbosity normal
+      - name: Generate Playwright report (HTML)
+        run: |
+          REPORT_DIR="Playwright.Tests/artifacts/playwright-report"
+          mkdir -p "$REPORT_DIR"
+          shopt -s nullglob || true
+          for f in Playwright.Tests/artifacts/*-trace.zip; do
+            echo "Generating HTML for $f"
+            npx playwright@1.60.0 show-trace "$f" --output="$REPORT_DIR/$(basename "$f" .zip).html" || true
+          done
+          # Attempt to generate a report view if traces exist
+          if compgen -G "Playwright.Tests/artifacts/*-trace.zip" > /dev/null; then
+            npx playwright@1.60.0 show-report Playwright.Tests/artifacts --output="$REPORT_DIR" || true
+          fi
+
+      - name: Check for Playwright report
+        id: report-check
+        run: |
+          if compgen -G "Playwright.Tests/artifacts/playwright-report/*" > /dev/null; then
+            echo "report_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "report_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload Playwright report to Pages (artifact)
+        if: steps.report-check.outputs.report_exists == 'true'
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: Playwright.Tests/artifacts/playwright-report
+
+      - name: Deploy Playwright report to GitHub Pages
+        if: steps.report-check.outputs.report_exists == 'true'
+        uses: actions/deploy-pages@v1
+
+      - name: Post Pages URL to PR
+        if: ${{ github.event_name == 'pull_request' && steps.report-check.outputs.report_exists == 'true' }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = context.payload.pull_request.number;
+            const base = `https://${owner}.github.io/${repo}/`;
+            const indexUrl = base; // index.html is deployed to root by the Pages action
+            const directReportUrl = base + 'index.html';
+            const body = `Playwright report published:\n- Report (root): ${indexUrl}\n- Direct index: ${directReportUrl}`;
+            await github.rest.issues.createComment({ owner, repo, issue_number, body });
+
+      - name: Upload test artifacts (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts
+          path: |
+            Playwright.Tests/TestResults
+            Playwright.Tests/artifacts
+            Playwright.Tests/**/artifacts
+            Playwright.Tests/**/screenshots
+            Playwright.Tests/**/playwright-trace.zip
+            Playwright.Tests/**/trace.zip
+            Playwright.Tests/**/trace

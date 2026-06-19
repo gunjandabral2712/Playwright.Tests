@@ -38,14 +38,74 @@ namespace Playwright.Tests.Tests
             var context = await browser.NewContextAsync();
             Context = context;
             Page = await context.NewPageAsync();
+
+            // Start tracing for this test so we can collect trace on failure
+            try
+            {
+                await context.Tracing.StartAsync(new TracingStartOptions { Screenshots = true, Snapshots = true, Sources = true });
+            }
+            catch
+            {
+                // tracing may not be supported in some environments; ignore start failures
+            }
         }
 
         [TearDown]
         public async Task TearDown()
         {
             var context = Context;
+
+            // Ensure artifacts directory in project root exists (Playwright.Tests/artifacts)
+            string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
+            var artifactsDir = Path.Combine(projectDir, "artifacts");
+            Directory.CreateDirectory(artifactsDir);
+
+            // If test failed, capture screenshot and save trace
+            var outcome = NUnit.Framework.TestContext.CurrentContext.Result.Outcome.Status;
+            var testName = NUnit.Framework.TestContext.CurrentContext.Test.Name ?? "test";
+
             if (context != null)
-                await context.CloseAsync();
+            {
+                try
+                {
+                    if (outcome == NUnit.Framework.Interfaces.TestStatus.Failed && Page != null)
+                    {
+                        var screenshotPath = Path.Combine(artifactsDir, testName + ".png");
+                        try
+                        {
+                            await Page.ScreenshotAsync(new PageScreenshotOptions { Path = screenshotPath });
+                        }
+                        catch
+                        {
+                            // ignore screenshot errors
+                        }
+                    }
+
+                    // Stop tracing and save to artifacts regardless of test outcome
+                    var tracePath = Path.Combine(artifactsDir, testName + "-trace.zip");
+                    try
+                    {
+                        await context.Tracing.StopAsync(new TracingStopOptions { Path = tracePath });
+                    }
+                    catch
+                    {
+                        // ignore tracing stop errors
+                    }
+                }
+                catch
+                {
+                    // ignore any teardown exceptions
+                }
+
+                try
+                {
+                    await context.CloseAsync();
+                }
+                catch
+                {
+                    // ignore close errors
+                }
+            }
         }
 
         [OneTimeTearDown]
