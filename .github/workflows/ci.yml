@@ -25,13 +25,26 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Install Playwright CLI
-        run: |
-          dotnet tool install --tool-path ./.tools Microsoft.Playwright.CLI --version 1.60.0
-          ./.tools/playwright --version || true
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-browsers-v1
+          restore-keys: ${{ runner.os }}-playwright-browsers-
 
       - name: Install Playwright browsers
-        run: ./.tools/playwright install --with-deps
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: |
+          npx playwright@latest install --with-deps
+      - name: Show Playwright version
+        run: npx playwright --version || true
 
       - name: Test
         run: dotnet test Playwright.Tests/Playwright.Tests.csproj --configuration Release --no-build --verbosity normal
