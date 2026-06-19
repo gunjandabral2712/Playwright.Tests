@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Install Playwright CLI
+        run: |
+          dotnet tool install --tool-path ./.tools Microsoft.Playwright.CLI --version 1.60.0
+          ./.tools/playwright --version || true
+
+      - name: Install Playwright browsers
+        run: ./.tools/playwright install --with-deps
+
+      - name: Test
+        run: dotnet test Playwright.Tests/Playwright.Tests.csproj --configuration Release --no-build --verbosity normal
