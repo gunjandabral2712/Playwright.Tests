@@ -33,6 +33,8 @@ Environment-specific appsettings
 - The test runner reads ASPNETCORE_ENVIRONMENT or TEST_ENVIRONMENT to pick the environment-specific file. If neither is set, Local is used by default.
 - To run locally with Local settings (headed by default): ensure TEST_ENVIRONMENT is not set or set it to Local.
 - In CI the workflow sets TEST_ENVIRONMENT=CI so appsettings.CI.json is loaded automatically.
+ - Note: Headless mode for CI is controlled by the workflow's MODE variable (and the Headless environment variable exposed to tests).
+   For clarity, appsettings.CI.json does not set Headless; use the workflow input or env to switch headed vs headless runs.
 
 CI
 

@@ -5,16 +5,25 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode: 'headless' or 'headed'"
+        required: false
+        default: 'headless'
+        type: choice
+        options:
+          - headless
+          - headed
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        mode: [headless, headed]
     env:
-      # set Headless to true for headless mode, false for headed
-      Headless: ${{ matrix.mode == 'headless' }}
+      # MODE is taken from workflow_dispatch input (if present) or defaults to 'headless'
+      MODE: ${{ github.event.inputs.mode || 'headless' }}
+      # Headless boolean exposed to tests; evaluates to true when MODE == 'headless'
+      Headless: ${{ eq(env.MODE, 'headless') }}
 
     steps:
       - name: Checkout
@@ -58,7 +67,7 @@ jobs:
           TEST_ENVIRONMENT: CI
         run: |
           mkdir -p Playwright.Tests/TestResults
-          if [ "${{ matrix.mode }}" = "headed" ]; then
+          if [ "$MODE" = "headed" ]; then
             xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
               env TEST_ENVIRONMENT=CI dotnet test Playwright.Tests/Playwright.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=Playwright.Tests/TestResults/test_results.trx" --verbosity normal
           else

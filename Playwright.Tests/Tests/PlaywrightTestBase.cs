@@ -16,6 +16,16 @@ namespace Playwright.Tests.Tests
         {
             Config = TestConfig.Load();
 
+            // Log effective configuration so CI logs show whether tests run headless or headed
+            try
+            {
+                NUnit.Framework.TestContext.Progress.WriteLine($"Effective TestConfig: Browser={Config.Browser}, Headless={Config.Headless}, BaseUrl={Config.BaseUrl}");
+            }
+            catch
+            {
+                Console.WriteLine($"Effective TestConfig: Browser={Config.Browser}, Headless={Config.Headless}, BaseUrl={Config.BaseUrl}");
+            }
+
             Playwright = await Microsoft.Playwright.Playwright.CreateAsync();
 
             var headless = Config.Headless;
