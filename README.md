@@ -31,3 +31,8 @@ A GitHub Actions workflow is provided at .github/workflows/ci.yml. It restores, 
 
 Notes
 - If you open the solution in Visual Studio, add the Playwright.Framework project to the solution if it is not visible (right-click solution -> Add -> Existing Project -> Playwright.Framework\Playwright.Framework.csproj).
+
+GitHub Pages report
+- The CI workflow generates a Playwright HTML report (when traces are produced) and publishes it to the repository's gh-pages branch.
+- The report will be available at: https://<owner>.github.io/<repo>/ (and /index.html). The workflow will post a direct link on pull requests when a report is deployed.
+- Ensure GitHub Pages is enabled for the repository and that workflows are allowed to create commits (GITHUB_TOKEN needs push permission) so the report can be published.

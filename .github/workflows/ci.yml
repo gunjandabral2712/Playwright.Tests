@@ -70,15 +70,13 @@ jobs:
             echo "report_exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Upload Playwright report to Pages (artifact)
+      - name: Deploy Playwright report to gh-pages branch
         if: steps.report-check.outputs.report_exists == 'true'
-        uses: actions/upload-pages-artifact@v1
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: Playwright.Tests/artifacts/playwright-report
-
-      - name: Deploy Playwright report to GitHub Pages
-        if: steps.report-check.outputs.report_exists == 'true'
-        uses: actions/deploy-pages@v1
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: Playwright.Tests/artifacts/playwright-report
+          publish_branch: gh-pages
 
       - name: Post Pages URL to PR
         if: ${{ github.event_name == 'pull_request' && steps.report-check.outputs.report_exists == 'true' }}
