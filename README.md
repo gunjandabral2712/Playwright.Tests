@@ -25,6 +25,15 @@ Steps:
 3. Run tests:
    dotnet test Playwright.Tests/Playwright.Tests.csproj -c Release
 
+Environment-specific appsettings
+- This repo supports environment-specific appsettings files. Files supported:
+  - appsettings.json (defaults)
+  - appsettings.Local.json (local development)
+  - appsettings.CI.json (CI runs)
+- The test runner reads ASPNETCORE_ENVIRONMENT or TEST_ENVIRONMENT to pick the environment-specific file. If neither is set, Local is used by default.
+- To run locally with Local settings (headed by default): ensure TEST_ENVIRONMENT is not set or set it to Local.
+- In CI the workflow sets TEST_ENVIRONMENT=CI so appsettings.CI.json is loaded automatically.
+
 CI
 
 A GitHub Actions workflow is provided at .github/workflows/ci.yml. It restores, builds, installs Playwright browsers and runs tests on ubuntu-latest.

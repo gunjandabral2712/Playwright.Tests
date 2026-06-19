@@ -9,6 +9,12 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mode: [headless, headed]
+    env:
+      # set Headless to true for headless mode, false for headed
+      Headless: ${{ matrix.mode == 'headless' }}
 
     steps:
       - name: Checkout
@@ -37,15 +43,27 @@ jobs:
             exit 1
           fi
 
+      - name: Install xvfb (for headed runs)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+
       - name: Setup Node.js for report generation
         uses: actions/setup-node@v4
         with:
           node-version: '18'
 
       - name: Run tests (produce TRX)
+        env:
+          TEST_ENVIRONMENT: CI
         run: |
           mkdir -p Playwright.Tests/TestResults
-          dotnet test Playwright.Tests/Playwright.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=Playwright.Tests/TestResults/test_results.trx" --verbosity normal
+          if [ "${{ matrix.mode }}" = "headed" ]; then
+            xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
+              env TEST_ENVIRONMENT=CI dotnet test Playwright.Tests/Playwright.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=Playwright.Tests/TestResults/test_results.trx" --verbosity normal
+          else
+            env TEST_ENVIRONMENT=CI dotnet test Playwright.Tests/Playwright.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=Playwright.Tests/TestResults/test_results.trx" --verbosity normal
+          fi
 
       - name: Generate Playwright report (HTML)
         run: |
